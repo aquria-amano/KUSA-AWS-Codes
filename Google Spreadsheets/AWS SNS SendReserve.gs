@@ -49,12 +49,16 @@ function sendPushNotifications() {
   const apiUrl = "https://vo5uvo595c.execute-api.ap-northeast-1.amazonaws.com/broadcast";
   let successCount = 0;
 
-  targets.forEach(t => {
+  targets.forEach((t, index) => {
     const payload = { 
       "targetTopic": t.topic,
       "title": t.title,
       "body": t.body
     };
+
+    if (index > 0) {
+      Utilities.sleep(200); // 通常の待機
+    }
     
     const options = {
       "method": "post", "contentType": "application/json",
@@ -63,11 +67,13 @@ function sendPushNotifications() {
     };
 
     try {
-      const res = UrlFetchApp.fetch(apiUrl, options);
+      // --- 修正箇所: 通常のfetchからリトライ付きのfetchへ変更 ---
+      const res = fetchWithRetry(apiUrl, options);
       if(res.getResponseCode() === 200) successCount++;
       saveLogToSheet(payload, `即時送信(${t.regionName}): ` + res.getResponseCode());
     } catch (e) {
-      saveLogToSheet(payload, "即時送信エラー: " + e.toString());
+      // 最大回数リトライしても失敗した場合のみここに来る
+      saveLogToSheet(payload, "即時送信 最終エラー: " + e.toString());
     }
   });
 
@@ -76,7 +82,35 @@ function sendPushNotifications() {
 }
 
 /**
- * 2. 予約送信 (リージョンごとにP列のJST時刻でスケジュール登録)
+ * 追加：リトライ用補助関数 (指数バックオフ)
+ */
+function fetchWithRetry(url, options, maxRetries = 3) {
+  let lastError;
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      const response = UrlFetchApp.fetch(url, options);
+      const code = response.getResponseCode();
+      
+      // 成功、もしくはリトライしても無駄なエラー(403等)はそのまま返す
+      if (code === 200 || code === 403) return response;
+      
+      // それ以外(帯域制限エラー等)はリトライ対象
+      console.warn(`リトライ試行 ${i + 1}: Code ${code}`);
+    } catch (e) {
+      lastError = e;
+      console.warn(`リトライ試行 ${i + 1}: ${e.toString()}`);
+    }
+    
+    if (i < maxRetries - 1) {
+      // 失敗するごとに待ち時間を増やす (1秒 → 2秒)
+      Utilities.sleep(Math.pow(2, i) * 1000);
+    }
+  }
+  throw lastError || new Error("リトライ上限に達しました");
+}
+
+/**
+ * 2. 予約送信 (変更なし)
  */
 function createNotificationSchedule() {
   const ui = SpreadsheetApp.getUi();
