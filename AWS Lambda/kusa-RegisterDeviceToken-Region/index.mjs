@@ -5,13 +5,13 @@ const snsClient = new SNSClient({ region: "ap-northeast-1" });
 
 // --- タイムゾーン区分マッピングテーブル ---
 const TIMEZONE_MAPPING = [
-    { label: "AsiaEast",      min: 8.5,  max: 10.0 }, // 日本(+9)
-    { label: "AsiaChina",     min: 7.5,  max: 8.4 },  // 中国(+8)
-    { label: "AsiaSoutheast", min: 6.5,  max: 7.4 },  // タイ(+7)
-    { label: "EuropeCentral", min: 0.5,  max: 2.0 },  // 欧州(+1)
-    { label: "GMT",           min: -0.5, max: 0.4 },  // 英国(+0)
-    { label: "USEast",        min: -6.0, max: -4.0 }, // NY(-5)
-    { label: "USWest",        min: -9.0, max: -7.0 }, // LA(-8)
+    { label: "AsiaEast",      min: 8.5,  max: 14.0 }, // 日本、NZなど (+9〜+14)
+    { label: "AsiaChina",     min: 7.5,  max: 8.4  }, // 中国 (+8)
+    { label: "AsiaSoutheast", min: 3.5,  max: 7.4  }, // タイ、インド、中東 (+3.5〜+7)
+    { label: "EuropeCentral", min: 0.5,  max: 3.4  }, // 欧州、モスクワ、トルコ (+0.5〜+3.4)
+    { label: "GMT",           min: -2.5, max: 0.4  }, // 英国、ブラジル、西アフリカ (-2.5〜+0.4)
+    { label: "USEast",        min: -6.5, max: -2.6 }, // NY、ブラジル (-6.5〜-2.6)
+    { label: "USWest",        min: -14.0, max: -6.6 }, // LA、ハワイ (-14〜-6.6)
 ];
 
 export const handler = async (event) => {
@@ -38,7 +38,7 @@ export const handler = async (event) => {
         }
 
         // --- A. タイムゾーンラベルの判定 ---
-        let selectedLabel = "UTC";
+        let selectedLabel = "GMT";
         for (const range of TIMEZONE_MAPPING) {
             if (timezoneOffset >= range.min && timezoneOffset <= range.max) {
                 selectedLabel = range.label;
